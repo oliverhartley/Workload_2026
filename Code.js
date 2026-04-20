@@ -59,15 +59,32 @@ function syncWorkloadPartnersSheet() {
     Logger.log("Created target sheet by copying source.");
   }
   
-  // 1. Build Map from Link Sheet
-  // Column B is Workload Name, Column D is Workload_ID
-  var linkData = linkSheet.getDataRange().getValues();
+  // 1. Build Map from Link Sheet by extracting IDs from formulas
+  // Column B is Workload Name (as display value and contains hyperlink)
+  var linkLastRow = linkSheet.getLastRow();
   var linkMap = {};
-  for (var i = 1; i < linkData.length; i++) {
-    var workloadName = linkData[i][1]; // Column B (index 1)
-    var workloadId = linkData[i][3];   // Column D (index 3)
-    if (workloadName) {
-      linkMap[workloadName] = workloadId;
+  
+  if (linkLastRow > 1) {
+    var linkRange = linkSheet.getRange(2, 2, linkLastRow - 1, 1); // Column B
+    var linkValues = linkRange.getValues();
+    var linkFormulas = linkRange.getFormulas();
+    
+    for (var i = 0; i < linkValues.length; i++) {
+      var workloadName = linkValues[i][0];
+      var formula = linkFormulas[i][0];
+      var workloadId = "";
+      
+      if (formula) {
+        var match = formula.match(/(?:Workload__c|Workload_c)\/([^\/]+)\/view/);
+        if (match && match[1]) {
+          workloadId = match[1];
+        }
+      }
+      
+      if (workloadName) {
+        linkMap[workloadName] = workloadId;
+        Logger.log("Link Map Add: '" + workloadName + "' -> '" + workloadId + "'");
+      }
     }
   }
   
@@ -85,6 +102,7 @@ function syncWorkloadPartnersSheet() {
     var workloadName = sourceData[i][3]; // Column D (index 3) is Workload Name in source
     var id = linkMap[workloadName] || "";
     workloadIds.push(id);
+    Logger.log("Lookup: '" + workloadName + "' -> Found ID: '" + id + "'");
   }
   
   // 3. Manage target sheet columns
