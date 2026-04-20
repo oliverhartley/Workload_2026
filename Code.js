@@ -75,6 +75,9 @@ function syncWorkloadsFromScratch() {
     var targetHeaders = sourceHeaders.slice();
     targetHeaders.push("Workload_ID");
     targetHeaders.push("Workload_Link");
+    targetHeaders.push("Status");
+    targetHeaders.push("Comment");
+    targetHeaders.push("Comment for ER");
     targetSheet.appendRow(targetHeaders);
     targetLastRow = 1;
   }
@@ -83,9 +86,14 @@ function syncWorkloadsFromScratch() {
   var targetData = targetSheet.getDataRange().getValues();
   var targetMap = {};
   
-  // Find Workload_ID column index in target. It should be the second to last one now.
-  var targetIdColIndex = targetData[0].length - 2;
+  // Find Workload_ID column index in target. 
+  // Target headers: [sourceHeaders..., Workload_ID, Workload_Link, Status, Comment, Comment for ER]
+  // Workload_ID is at length - 5
+  var targetIdColIndex = targetData[0].length - 5;
   Logger.log("Target ID Column Index: " + targetIdColIndex);
+  
+  // Status column is at length - 3
+  var statusColIndex = targetData[0].length - 3;
   
   for (var i = 1; i < targetData.length; i++) {
     var targetRow = targetData[i];
@@ -108,28 +116,40 @@ function syncWorkloadsFromScratch() {
     var sourceValues = sourceRecord.values;
     var targetRecord = targetMap[id];
     
+    // Construct the full row for target including status and comments placeholders
+    var targetRowToWrite = sourceValues.slice();
+    while (targetRowToWrite.length < targetData[0].length) {
+      targetRowToWrite.push(""); // Pad with empty strings for new columns
+    }
+    
     if (!targetRecord) {
       // New Workload
-      targetSheet.appendRow(sourceValues);
+      targetRowToWrite[statusColIndex] = "New";
+      targetSheet.appendRow(targetRowToWrite);
       var lastRow = targetSheet.getLastRow();
-      targetSheet.getRange(lastRow, 1, 1, sourceValues.length).setBackground("#E2EFDA"); // Light Green
+      targetSheet.getRange(lastRow, 1, 1, targetRowToWrite.length).setBackground("#E2EFDA"); // Light Green
       Logger.log("Decision: NEW for ID: " + id + ". Appended at row " + lastRow);
     } else {
       // Existing Workload
       var targetRowNumber = targetRecord.row;
       var targetValues = targetRecord.values;
       
-      // Update values
-      targetSheet.getRange(targetRowNumber, 1, 1, sourceValues.length).setValues([sourceValues]);
+      // Preserve existing comments if they exist in target
+      targetRowToWrite[targetRowToWrite.length - 2] = targetValues[targetValues.length - 2]; // Comment
+      targetRowToWrite[targetRowToWrite.length - 1] = targetValues[targetValues.length - 1]; // Comment for ER
       
       // Check change tracking on progress column
       if (sourceRecord.progress !== targetRecord.progress) {
         // Tracked Change (Yellow)
-        targetSheet.getRange(targetRowNumber, 1, 1, sourceValues.length).setBackground("#FFF2CC"); // Yellow
+        targetRowToWrite[statusColIndex] = "Updated";
+        targetSheet.getRange(targetRowNumber, 1, 1, targetRowToWrite.length).setValues([targetRowToWrite]);
+        targetSheet.getRange(targetRowNumber, 1, 1, targetRowToWrite.length).setBackground("#FFF2CC"); // Yellow
         Logger.log("Decision: UPDATE (Yellow) for ID: " + id + " at row " + targetRowNumber);
       } else {
         // Regular update, clear background
-        targetSheet.getRange(targetRowNumber, 1, 1, sourceValues.length).setBackground(null);
+        targetRowToWrite[statusColIndex] = targetValues[statusColIndex]; // Preserve status if not updated in this run
+        targetSheet.getRange(targetRowNumber, 1, 1, targetRowToWrite.length).setValues([targetRowToWrite]);
+        targetSheet.getRange(targetRowNumber, 1, 1, targetRowToWrite.length).setBackground(null);
         Logger.log("Decision: UPDATE (Clear) for ID: " + id + " at row " + targetRowNumber);
       }
     }
@@ -141,6 +161,9 @@ function syncWorkloadsFromScratch() {
       // Removed Workload
       var targetRowNumber = targetMap[id].row;
       var targetValues = targetMap[id].values;
+      
+      // Update status to Removed
+      targetSheet.getRange(targetRowNumber, statusColIndex + 1).setValue("Removed");
       
       // Highlight entire row with light red background
       targetSheet.getRange(targetRowNumber, 1, 1, targetValues.length).setBackground("#FCE4D6"); // Light Red
