@@ -30,7 +30,6 @@ function syncWorkloadsFromScratch() {
   var progressColIndex = 7;
   
   var sourceMap = {};
-  var sourceRows = [];
   
   var lastRow = sourceSheet.getLastRow();
   
@@ -59,11 +58,10 @@ function syncWorkloadsFromScratch() {
       if (id) {
         var fullRow = sourceRow.slice();
         fullRow.push(id);
-        fullRow.push(url); // Append raw URL as requested
+        fullRow.push(url); // Append raw URL
         
         sourceMap[id] = { values: fullRow, progress: sourceRow[progressColIndex] };
-        sourceRows.push(fullRow);
-        Logger.log("Extracted ID: '" + id + "' and URL for workload: '" + workloadName + "'");
+        Logger.log("Source Map Add: '" + id + "' for workload: '" + workloadName + "'");
       } else {
         Logger.log("Failed to extract ID for workload: '" + workloadName + "'");
       }
@@ -87,12 +85,14 @@ function syncWorkloadsFromScratch() {
   
   // Find Workload_ID column index in target. It should be the second to last one now.
   var targetIdColIndex = targetData[0].length - 2;
+  Logger.log("Target ID Column Index: " + targetIdColIndex);
   
   for (var i = 1; i < targetData.length; i++) {
     var targetRow = targetData[i];
     var id = targetRow[targetIdColIndex];
     if (id) {
       targetMap[id] = { row: i + 1, values: targetRow, progress: targetRow[progressColIndex] };
+      Logger.log("Target Map Add: '" + id + "' at row " + (i + 1));
     }
   }
   
@@ -113,7 +113,7 @@ function syncWorkloadsFromScratch() {
       targetSheet.appendRow(sourceValues);
       var lastRow = targetSheet.getLastRow();
       targetSheet.getRange(lastRow, 1, 1, sourceValues.length).setBackground("#E2EFDA"); // Light Green
-      Logger.log("Added new row with ID: " + id);
+      Logger.log("Decision: NEW for ID: " + id + ". Appended at row " + lastRow);
     } else {
       // Existing Workload
       var targetRowNumber = targetRecord.row;
@@ -126,10 +126,11 @@ function syncWorkloadsFromScratch() {
       if (sourceRecord.progress !== targetRecord.progress) {
         // Tracked Change (Yellow)
         targetSheet.getRange(targetRowNumber, 1, 1, sourceValues.length).setBackground("#FFF2CC"); // Yellow
-        Logger.log("Updated cell and highlighted yellow for ID: " + id);
+        Logger.log("Decision: UPDATE (Yellow) for ID: " + id + " at row " + targetRowNumber);
       } else {
         // Regular update, clear background
         targetSheet.getRange(targetRowNumber, 1, 1, sourceValues.length).setBackground(null);
+        Logger.log("Decision: UPDATE (Clear) for ID: " + id + " at row " + targetRowNumber);
       }
     }
   }
@@ -143,7 +144,7 @@ function syncWorkloadsFromScratch() {
       
       // Highlight entire row with light red background
       targetSheet.getRange(targetRowNumber, 1, 1, targetValues.length).setBackground("#FCE4D6"); // Light Red
-      Logger.log("Highlighted removed workload with ID: " + id);
+      Logger.log("Decision: REMOVED (Red) for ID: " + id + " at row " + targetRowNumber);
     }
   }
 }
