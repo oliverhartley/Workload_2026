@@ -2,7 +2,7 @@ function syncWorkloadsFromScratch() {
   var sourceSpreadsheetId = "1snf2ryBk7Lizdu5FwTf-LpRc70KN4I-W2-LECgEOJZU";
   var targetSpreadsheetId = "1qsB7bD_26sUie6OyW-uyty-r9W3LYTdFjXgIYel3zck";
   
-  var sourceSheetName = "Oliver - Worloads Partners";
+  var sourceSheetName = "Oliver - Workloads Partners";
   var targetSheetName = "Synced Workloads";
   
   var sourceSpreadsheet = SpreadsheetApp.openById(sourceSpreadsheetId);
