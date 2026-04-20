@@ -95,9 +95,9 @@ function syncWorkloadsFromScratch() {
     targetHeaders.push("Workload_ID");
     targetHeaders.push("Workload_Link");
     targetHeaders.push("Days to Production");
-    targetHeaders.push("Status");
-    targetHeaders.push("Comment");
-    targetHeaders.push("Comment for ER");
+    targetHeaders.push("Pendiente");
+    targetHeaders.push("Comentario");
+    targetHeaders.push("ER-Gemini");
     targetSheet.appendRow(targetHeaders);
     targetLastRow = 1;
   }
@@ -109,7 +109,7 @@ function syncWorkloadsFromScratch() {
   
   // Find column indices by header name
   var targetIdColIndex = targetHeaders.indexOf("Workload_ID");
-  var statusColIndex = targetHeaders.indexOf("Status");
+  var statusColIndex = targetHeaders.indexOf("Pendiente");
   var daysToProdColIndex = targetHeaders.indexOf("Days to Production");
   
   Logger.log("Target ID Column Index: " + targetIdColIndex);
@@ -159,8 +159,8 @@ function syncWorkloadsFromScratch() {
       var targetValues = targetRecord.values;
       
       // Preserve existing comments if they exist in target
-      var commentIndex = targetHeaders.indexOf("Comment");
-      var commentErIndex = targetHeaders.indexOf("Comment for ER");
+      var commentIndex = targetHeaders.indexOf("Comentario");
+      var commentErIndex = targetHeaders.indexOf("ER-Gemini");
       
       if (commentIndex !== -1) targetRowToWrite[commentIndex] = targetValues[commentIndex];
       if (commentErIndex !== -1) targetRowToWrite[commentErIndex] = targetValues[commentErIndex];
