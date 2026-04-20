@@ -3,17 +3,15 @@ function syncWorkloadsFromScratch() {
   var targetSpreadsheetId = "1qsB7bD_26sUie6OyW-uyty-r9W3LYTdFjXgIYel3zck";
   
   var sourceSheetName = "Oliver - Worloads Partners";
-  var linkSheetName = "Link";
   var targetSheetName = "Synced Workloads";
   
   var sourceSpreadsheet = SpreadsheetApp.openById(sourceSpreadsheetId);
   var targetSpreadsheet = SpreadsheetApp.openById(targetSpreadsheetId);
   
   var sourceSheet = sourceSpreadsheet.getSheetByName(sourceSheetName);
-  var linkSheet = sourceSpreadsheet.getSheetByName(linkSheetName);
   
-  if (!sourceSheet || !linkSheet) {
-    throw new Error("Source sheet or Link sheet not found.");
+  if (!sourceSheet) {
+    throw new Error("Source sheet not found.");
   }
   
   var targetSheet = targetSpreadsheet.getSheetByName(targetSheetName);
@@ -22,35 +20,7 @@ function syncWorkloadsFromScratch() {
     Logger.log("Created target sheet: " + targetSheetName);
   }
   
-  // 1. Build Map from Link Sheet by extracting IDs from formulas
-  // Column B is Workload Name (as display value and contains hyperlink)
-  var linkLastRow = linkSheet.getLastRow();
-  var linkMap = {};
-  
-  if (linkLastRow > 1) {
-    var linkRange = linkSheet.getRange(2, 2, linkLastRow - 1, 1); // Column B
-    var linkValues = linkRange.getValues();
-    var linkFormulas = linkRange.getFormulas();
-    
-    for (var i = 0; i < linkValues.length; i++) {
-      var workloadName = linkValues[i][0];
-      var formula = linkFormulas[i][0];
-      var workloadId = "";
-      
-      if (formula) {
-        var match = formula.match(/(?:Workload__c|Workload_c)\/([^\/]+)\/view/);
-        if (match && match[1]) {
-          workloadId = match[1];
-        }
-      }
-      
-      if (workloadName) {
-        linkMap[workloadName] = workloadId;
-      }
-    }
-  }
-  
-  // 2. Read source data and merge with IDs
+  // 1. Read source data and extract IDs from Column E (Link)
   var sourceData = sourceSheet.getDataRange().getValues();
   var sourceHeaders = sourceData[0];
   
@@ -62,19 +32,40 @@ function syncWorkloadsFromScratch() {
   var sourceMap = {};
   var sourceRows = [];
   
-  for (var i = 1; i < sourceData.length; i++) {
-    var sourceRow = sourceData[i];
-    var workloadName = sourceRow[nameColIndex];
-    var id = linkMap[workloadName] || "";
-    
-    if (id) {
-      // Construct full row for target including the ID
-      // Add it as the last column.
-      var fullRow = sourceRow.slice();
-      fullRow.push(id);
+  var lastRow = sourceSheet.getLastRow();
+  
+  if (lastRow > 1) {
+    for (var i = 1; i < sourceData.length; i++) {
+      var sourceRow = sourceData[i];
+      var workloadName = sourceRow[nameColIndex];
+      var id = "";
       
-      sourceMap[id] = { values: fullRow, progress: sourceRow[progressColIndex] };
-      sourceRows.push(fullRow);
+      // Try to get link from rich text of Column E (column 5)
+      var cell = sourceSheet.getRange(i + 1, 5);
+      var richText = cell.getRichTextValue();
+      var url = "";
+      
+      if (richText) {
+        url = richText.getLinkUrl();
+      }
+      
+      if (url) {
+        var match = url.match(/(?:Workload__c|Workload_c)\/([^\/]+)\/view/);
+        if (match && match[1]) {
+          id = match[1];
+        }
+      }
+      
+      if (id) {
+        var fullRow = sourceRow.slice();
+        fullRow.push(id);
+        
+        sourceMap[id] = { values: fullRow, progress: sourceRow[progressColIndex] };
+        sourceRows.push(fullRow);
+        Logger.log("Extracted ID: '" + id + "' for workload: '" + workloadName + "'");
+      } else {
+        Logger.log("Failed to extract ID for workload: '" + workloadName + "'");
+      }
     }
   }
   
