@@ -1,47 +1,14 @@
-function copyWorkloadPartnersSheet() {
+function syncWorkloadsFromScratch() {
   var sourceSpreadsheetId = "1snf2ryBk7Lizdu5FwTf-LpRc70KN4I-W2-LECgEOJZU";
-  var sourceSheetName = "Oliver - Workloads Partners";
+  var targetSpreadsheetId = "1qsB7bD_26sUie6OyW-uyty-r9W3LYTdFjXgIYel3zck";
   
-  // Open the source spreadsheet and get the sheet
-  var sourceSpreadsheet = SpreadsheetApp.openById(sourceSpreadsheetId);
-  var sourceSheet = sourceSpreadsheet.getSheetByName(sourceSheetName);
-  
-  if (!sourceSheet) {
-    throw new Error("Source sheet not found: " + sourceSheetName);
-  }
-  
-  // Open the target spreadsheet. 
-  // Assuming this script is bound to the target spreadsheet.
-  // If not, replace with SpreadsheetApp.openById("YOUR_TARGET_SPREADSHEET_ID")
-  var targetSpreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  
-  if (!targetSpreadsheet) {
-    throw new Error("Target spreadsheet not found. Is this script bound to a spreadsheet?");
-  }
-  
-  // Check if a sheet with the same name already exists in target
-  var existingSheet = targetSpreadsheet.getSheetByName(sourceSheetName);
-  if (existingSheet) {
-    // Option: Delete the existing sheet to replace it
-    targetSpreadsheet.deleteSheet(existingSheet);
-    Logger.log("Deleted existing sheet in target: " + sourceSheetName);
-  }
-  
-  // Copy the sheet to the target spreadsheet
-  var copiedSheet = sourceSheet.copyTo(targetSpreadsheet);
-  
-  // Rename the copied sheet to the original name
-  copiedSheet.setName(sourceSheetName);
-  
-  Logger.log("Successfully copied sheet to target: " + sourceSheetName);
-}
-
-function syncWorkloadPartnersSheet() {
-  var sourceSpreadsheetId = "1snf2ryBk7Lizdu5FwTf-LpRc70KN4I-W2-LECgEOJZU";
-  var sourceSheetName = "Oliver - Workloads Partners";
+  var sourceSheetName = "Oliver - Worloads Partners";
   var linkSheetName = "Link";
+  var targetSheetName = "Synced Workloads";
   
   var sourceSpreadsheet = SpreadsheetApp.openById(sourceSpreadsheetId);
+  var targetSpreadsheet = SpreadsheetApp.openById(targetSpreadsheetId);
+  
   var sourceSheet = sourceSpreadsheet.getSheetByName(sourceSheetName);
   var linkSheet = sourceSpreadsheet.getSheetByName(linkSheetName);
   
@@ -49,14 +16,10 @@ function syncWorkloadPartnersSheet() {
     throw new Error("Source sheet or Link sheet not found.");
   }
   
-  var targetSpreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  var targetSheet = targetSpreadsheet.getSheetByName(sourceSheetName);
-  
-  // If target sheet doesn't exist, create it by copying the source
+  var targetSheet = targetSpreadsheet.getSheetByName(targetSheetName);
   if (!targetSheet) {
-    targetSheet = sourceSheet.copyTo(targetSpreadsheet);
-    targetSheet.setName(sourceSheetName);
-    Logger.log("Created target sheet by copying source.");
+    targetSheet = targetSpreadsheet.insertSheet(targetSheetName);
+    Logger.log("Created target sheet: " + targetSheetName);
   }
   
   // 1. Build Map from Link Sheet by extracting IDs from formulas
@@ -83,178 +46,111 @@ function syncWorkloadPartnersSheet() {
       
       if (workloadName) {
         linkMap[workloadName] = workloadId;
-        Logger.log("Link Map Add: '" + workloadName + "' -> '" + workloadId + "'");
       }
     }
   }
   
-  var lastRow = sourceSheet.getLastRow();
-  if (lastRow <= 1) {
-    Logger.log("Source sheet has no data rows. Skipping sync.");
-    return;
-  }
-  
-  // 2. Read source data and map IDs
+  // 2. Read source data and merge with IDs
   var sourceData = sourceSheet.getDataRange().getValues();
-  var workloadIds = [];
+  var sourceHeaders = sourceData[0];
   
-  for (var i = 1; i < sourceData.length; i++) {
-    var workloadName = sourceData[i][3]; // Column D (index 3) is Workload Name in source
-    var id = linkMap[workloadName] || "";
-    workloadIds.push(id);
-    Logger.log("Lookup: '" + workloadName + "' -> Found ID: '" + id + "'");
-  }
+  // Find Workload Name column in source (Column D = index 3)
+  var nameColIndex = 3; 
+  // Find Progress column in source (Column H = index 7)
+  var progressColIndex = 7;
   
-  // 3. Manage target sheet columns
-  // Ensure target sheet has columns AB and AC if not present
-  var targetLastCol = targetSheet.getLastColumn();
-  if (targetLastCol < 29) {
-    targetSheet.getRange(1, 28).setValue("Status");
-    targetSheet.getRange(1, 29).setValue("New");
-  }
+  var sourceMap = {};
+  var sourceRows = [];
   
-  // Also add Workload_ID column at the end (Column AD = 30)
-  targetSheet.getRange(1, 30).setValue("Workload_ID");
-  
-  // 4. Backfill missing IDs in target sheet
-  var targetData = targetSheet.getDataRange().getValues();
-  var targetIds = [];
-  var needsUpdate = false;
-  
-  for (var i = 1; i < targetData.length; i++) {
-    var id = targetData[i][29]; // Column AD is index 29 (0-based)
-    if (!id) {
-      var workloadName = targetData[i][3]; // Column D (index 3) is Workload Name in target
-      id = linkMap[workloadName] || "";
-      if (id) {
-        targetIds.push([id]);
-        needsUpdate = true;
-      } else {
-        targetIds.push([""]);
-      }
-    } else {
-      targetIds.push([id]);
-    }
-  }
-  
-  if (needsUpdate) {
-    targetSheet.getRange(2, 30, targetIds.length, 1).setValues(targetIds);
-    Logger.log("Backfilled missing IDs in target sheet.");
-    // Re-read target data to get the updated values
-    targetData = targetSheet.getDataRange().getValues();
-  }
-  
-  // 5. Map target data by Workload_ID (Column AD = 30)
-  var targetMap = {};
-  for (var i = 1; i < targetData.length; i++) {
-    var id = targetData[i][29]; // Column AD is index 29 (0-based)
-    if (id) {
-      targetMap[id] = { row: i + 1, values: targetData[i] };
-    }
-  }
-  
-  // 6. Iterate source data and compare
   for (var i = 1; i < sourceData.length; i++) {
     var sourceRow = sourceData[i];
-    var id = workloadIds[i - 1]; // Corresponding ID for this row
+    var workloadName = sourceRow[nameColIndex];
+    var id = linkMap[workloadName] || "";
     
-    if (!id) continue;
-    
-    var targetRowInfo = targetMap[id];
-    
-    if (!targetRowInfo) {
-      // New row
-      var fullRow = sourceRow.slice(); // Copy source values
-      while (fullRow.length < 29) {
-        fullRow.push("");
-      }
-      fullRow[27] = ""; // Status
-      fullRow[28] = "Yes"; // New
-      fullRow[29] = id; // Workload_ID in Column AD
+    if (id) {
+      // Construct full row for target including the ID
+      // Add it as the last column.
+      var fullRow = sourceRow.slice();
+      fullRow.push(id);
       
-      targetSheet.appendRow(fullRow);
+      sourceMap[id] = { values: fullRow, progress: sourceRow[progressColIndex] };
+      sourceRows.push(fullRow);
+    }
+  }
+  
+  // 3. Prepare target sheet headers if empty
+  var targetLastRow = targetSheet.getLastRow();
+  
+  if (targetLastRow === 0) {
+    var targetHeaders = sourceHeaders.slice();
+    targetHeaders.push("Workload_ID");
+    targetSheet.appendRow(targetHeaders);
+    targetLastRow = 1;
+  }
+  
+  // 4. Read target data and map by ID
+  var targetData = targetSheet.getDataRange().getValues();
+  var targetMap = {};
+  
+  // Find Workload_ID column index in target. It should be the last one.
+  var targetIdColIndex = targetData[0].length - 1;
+  
+  for (var i = 1; i < targetData.length; i++) {
+    var targetRow = targetData[i];
+    var id = targetRow[targetIdColIndex];
+    if (id) {
+      targetMap[id] = { row: i + 1, values: targetRow, progress: targetRow[progressColIndex] };
+    }
+  }
+  
+  // 5. Sync and apply rules
+  
+  // Track processed source IDs to find removed workloads
+  var processedSourceIds = {};
+  
+  // New and Updated rows
+  for (var id in sourceMap) {
+    processedSourceIds[id] = true;
+    var sourceRecord = sourceMap[id];
+    var sourceValues = sourceRecord.values;
+    var targetRecord = targetMap[id];
+    
+    if (!targetRecord) {
+      // New Workload
+      targetSheet.appendRow(sourceValues);
+      var lastRow = targetSheet.getLastRow();
+      targetSheet.getRange(lastRow, 1, 1, sourceValues.length).setBackground("#E2EFDA"); // Light Green
       Logger.log("Added new row with ID: " + id);
     } else {
-      // Existing row, compare cells
-      var targetRowNumber = targetRowInfo.row;
-      var targetValues = targetRowInfo.values;
+      // Existing Workload
+      var targetRowNumber = targetRecord.row;
+      var targetValues = targetRecord.values;
       
-      for (var j = 0; j < sourceRow.length; j++) {
-        if (sourceRow[j] !== targetValues[j]) {
-          // Change detected
-          var cell = targetSheet.getRange(targetRowNumber, j + 1);
-          cell.setValue(sourceRow[j]);
-          cell.setBackground("#FFFFE0"); // Light yellow
-          Logger.log("Updated cell (" + targetRowNumber + "," + (j + 1) + ") for ID: " + id);
-        }
+      // Update values
+      targetSheet.getRange(targetRowNumber, 1, 1, sourceValues.length).setValues([sourceValues]);
+      
+      // Check change tracking on progress column
+      if (sourceRecord.progress !== targetRecord.progress) {
+        // Tracked Change (Yellow)
+        targetSheet.getRange(targetRowNumber, 1, 1, sourceValues.length).setBackground("#FFF2CC"); // Yellow
+        Logger.log("Updated cell and highlighted yellow for ID: " + id);
+      } else {
+        // Regular update, clear background
+        targetSheet.getRange(targetRowNumber, 1, 1, sourceValues.length).setBackground(null);
       }
     }
   }
-}
-
-
-function copyLinkSheet() {
-  var sourceSpreadsheetId = "1snf2ryBk7Lizdu5FwTf-LpRc70KN4I-W2-LECgEOJZU";
-  var sourceSheetName = "Link";
   
-  // Open the source spreadsheet and get the sheet
-  var sourceSpreadsheet = SpreadsheetApp.openById(sourceSpreadsheetId);
-  var sourceSheet = sourceSpreadsheet.getSheetByName(sourceSheetName);
-  
-  if (!sourceSheet) {
-    throw new Error("Source sheet not found: " + sourceSheetName);
-  }
-  
-  // Open the target spreadsheet. 
-  // Assuming this script is bound to the target spreadsheet.
-  var targetSpreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  
-  if (!targetSpreadsheet) {
-    throw new Error("Target spreadsheet not found. Is this script bound to a spreadsheet?");
-  }
-  
-  // Check if a sheet with the same name already exists in target
-  var existingSheet = targetSpreadsheet.getSheetByName(sourceSheetName);
-  if (existingSheet) {
-    // Delete the existing sheet to replace it
-    targetSpreadsheet.deleteSheet(existingSheet);
-    Logger.log("Deleted existing sheet in target: " + sourceSheetName);
-  }
-  
-  // Copy the sheet to the target spreadsheet
-  var copiedSheet = sourceSheet.copyTo(targetSpreadsheet);
-  
-  // Rename the copied sheet to the original name
-  copiedSheet.setName(sourceSheetName);
-  
-  Logger.log("Successfully copied sheet to target: " + sourceSheetName);
-  
-  // Now extract Workload ID and add column
-  var lastRow = copiedSheet.getLastRow();
-  if (lastRow > 1) { // Ensure there are rows besides the header
-    // Column B is column 2
-    var formulaRange = copiedSheet.getRange(2, 2, lastRow - 1, 1);
-    var formulas = formulaRange.getFormulas();
-    var workloadIds = [];
-    
-    for (var i = 0; i < formulas.length; i++) {
-      var formula = formulas[i][0];
-      var workloadId = "";
+  // Removed Workloads
+  for (var id in targetMap) {
+    if (!processedSourceIds[id]) {
+      // Removed Workload
+      var targetRowNumber = targetMap[id].row;
+      var targetValues = targetMap[id].values;
       
-      if (formula) {
-        // Find ID between Workload__c/ (or Workload_c/) and /view
-        var match = formula.match(/(?:Workload__c|Workload_c)\/([^\/]+)\/view/);
-        if (match && match[1]) {
-          workloadId = match[1];
-        }
-      }
-      workloadIds.push([workloadId]);
+      // Highlight entire row with light red background
+      targetSheet.getRange(targetRowNumber, 1, 1, targetValues.length).setBackground("#FCE4D6"); // Light Red
+      Logger.log("Highlighted removed workload with ID: " + id);
     }
-    
-    // Add new column at column D (column 4)
-    copiedSheet.getRange(1, 4).setValue("Workload_ID");
-    copiedSheet.getRange(2, 4, workloadIds.length, 1).setValues(workloadIds);
-    Logger.log("Extracted and populated Workload_IDs.");
   }
 }
-
