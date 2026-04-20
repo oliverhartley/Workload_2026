@@ -28,12 +28,17 @@ function syncWorkloadsFromScratch() {
   var nameColIndex = 3; 
   // Find Progress column in source (Column H = index 7)
   var progressColIndex = 7;
+  // Find Production Date column in source (Column S = index 18)
+  var prodDateColIndex = 18;
   
   var sourceMap = {};
   
   var lastRow = sourceSheet.getLastRow();
   
   if (lastRow > 1) {
+    var today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time for accurate day calculation
+    
     for (var i = 1; i < sourceData.length; i++) {
       var sourceRow = sourceData[i];
       var workloadName = sourceRow[nameColIndex];
@@ -60,6 +65,20 @@ function syncWorkloadsFromScratch() {
         fullRow.push(id);
         fullRow.push(url); // Append raw URL
         
+        // Calculate Days to Production
+        var prodDateVal = sourceRow[prodDateColIndex];
+        var daysToProd = "";
+        
+        if (prodDateVal) {
+          var prodDate = new Date(prodDateVal);
+          if (!isNaN(prodDate.getTime())) {
+            prodDate.setHours(0, 0, 0, 0);
+            var timeDiff = prodDate.getTime() - today.getTime();
+            daysToProd = Math.ceil(timeDiff / (1000 * 3600 * 24));
+          }
+        }
+        fullRow.push(daysToProd);
+        
         sourceMap[id] = { values: fullRow, progress: sourceRow[progressColIndex] };
         Logger.log("Source Map Add: '" + id + "' for workload: '" + workloadName + "'");
       } else {
@@ -75,6 +94,7 @@ function syncWorkloadsFromScratch() {
     var targetHeaders = sourceHeaders.slice();
     targetHeaders.push("Workload_ID");
     targetHeaders.push("Workload_Link");
+    targetHeaders.push("Days to Production");
     targetHeaders.push("Status");
     targetHeaders.push("Comment");
     targetHeaders.push("Comment for ER");
@@ -87,9 +107,9 @@ function syncWorkloadsFromScratch() {
   var targetMap = {};
   
   // Find Workload_ID column index in target. 
-  // Target headers: [sourceHeaders..., Workload_ID, Workload_Link, Status, Comment, Comment for ER]
-  // Workload_ID is at length - 5
-  var targetIdColIndex = targetData[0].length - 5;
+  // Target headers: [sourceHeaders..., Workload_ID, Workload_Link, Days to Production, Status, Comment, Comment for ER]
+  // Workload_ID is at length - 6
+  var targetIdColIndex = targetData[0].length - 6;
   Logger.log("Target ID Column Index: " + targetIdColIndex);
   
   // Status column is at length - 3
