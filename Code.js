@@ -39,12 +39,14 @@ function copyWorkloadPartnersSheet() {
 function syncWorkloadPartnersSheet() {
   var sourceSpreadsheetId = "1snf2ryBk7Lizdu5FwTf-LpRc70KN4I-W2-LECgEOJZU";
   var sourceSheetName = "Oliver - Workloads Partners";
+  var linkSheetName = "Link";
   
   var sourceSpreadsheet = SpreadsheetApp.openById(sourceSpreadsheetId);
   var sourceSheet = sourceSpreadsheet.getSheetByName(sourceSheetName);
+  var linkSheet = sourceSpreadsheet.getSheetByName(linkSheetName);
   
-  if (!sourceSheet) {
-    throw new Error("Source sheet not found: " + sourceSheetName);
+  if (!sourceSheet || !linkSheet) {
+    throw new Error("Source sheet or Link sheet not found.");
   }
   
   var targetSpreadsheet = SpreadsheetApp.getActiveSpreadsheet();
@@ -55,7 +57,18 @@ function syncWorkloadPartnersSheet() {
     targetSheet = sourceSheet.copyTo(targetSpreadsheet);
     targetSheet.setName(sourceSheetName);
     Logger.log("Created target sheet by copying source.");
-    // We should still add the Workload_ID column if it's not there
+  }
+  
+  // 1. Build Map from Link Sheet
+  // Column B is Workload Name, Column D is Workload_ID
+  var linkData = linkSheet.getDataRange().getValues();
+  var linkMap = {};
+  for (var i = 1; i < linkData.length; i++) {
+    var workloadName = linkData[i][1]; // Column B (index 1)
+    var workloadId = linkData[i][3];   // Column D (index 3)
+    if (workloadName) {
+      linkMap[workloadName] = workloadId;
+    }
   }
   
   var lastRow = sourceSheet.getLastRow();
@@ -64,43 +77,28 @@ function syncWorkloadPartnersSheet() {
     return;
   }
   
-  // Extract IDs from Column E (column 5) formulas of source sheet
-  var formulaRange = sourceSheet.getRange(2, 5, lastRow - 1, 1);
-  var formulas = formulaRange.getFormulas();
+  // 2. Read data and map IDs
+  var sourceData = sourceSheet.getDataRange().getValues();
   var workloadIds = [];
   
-  for (var i = 0; i < formulas.length; i++) {
-    var formula = formulas[i][0];
-    var workloadId = "";
-    
-    if (formula) {
-      // Find ID between Workload__c/ (or Workload_c/) and /view
-      var match = formula.match(/(?:Workload__c|Workload_c)\/([^\/]+)\/view/);
-      if (match && match[1]) {
-        workloadId = match[1];
-      }
-    }
-    workloadIds.push(workloadId);
+  for (var i = 1; i < sourceData.length; i++) {
+    var workloadName = sourceData[i][3]; // Column D (index 3) is Workload Name in source
+    var id = linkMap[workloadName] || "";
+    workloadIds.push(id);
   }
   
-  // Now we have the IDs. Let's manage the target sheet.
+  // 3. Manage target sheet columns
   // Ensure target sheet has columns AB and AC if not present
-  // Column AB is 28, AC is 29
   var targetLastCol = targetSheet.getLastColumn();
   if (targetLastCol < 29) {
-    // We need to add columns up to AC
-    // Let's just set headers for AB and AC
     targetSheet.getRange(1, 28).setValue("Status");
     targetSheet.getRange(1, 29).setValue("New");
   }
   
-  // Also add Workload_ID column at the end if requested
-  // Let's place it at Column AD (column 30) or just after the last data column
-  // The user said "add a Column at the end with the Workload_ID"
-  // Let's assume Column AD is the end if AB and AC are used.
+  // Also add Workload_ID column at the end (Column AD = 30)
   targetSheet.getRange(1, 30).setValue("Workload_ID");
   
-  // Map target data by Workload_ID (which is now in Column AD = 30)
+  // Map target data by Workload_ID (Column AD = 30)
   var targetData = targetSheet.getDataRange().getValues();
   var targetMap = {};
   for (var i = 1; i < targetData.length; i++) {
@@ -110,9 +108,7 @@ function syncWorkloadPartnersSheet() {
     }
   }
   
-  var sourceData = sourceSheet.getDataRange().getValues();
-  
-  // Iterate source data and compare
+  // 4. Iterate source data and compare
   for (var i = 1; i < sourceData.length; i++) {
     var sourceRow = sourceData[i];
     var id = workloadIds[i - 1]; // Corresponding ID for this row
@@ -123,14 +119,10 @@ function syncWorkloadPartnersSheet() {
     
     if (!targetRowInfo) {
       // New row
-      // We need to construct the full row for target including the ID
-      // Source row might have fewer columns than target if target has AB, AC, AD
       var fullRow = sourceRow.slice(); // Copy source values
-      // Pad with empty values up to column AC if needed
       while (fullRow.length < 29) {
         fullRow.push("");
       }
-      // Set status and new flags in Columns AB and AC
       fullRow[27] = ""; // Status
       fullRow[28] = "Yes"; // New
       fullRow[29] = id; // Workload_ID in Column AD
@@ -138,8 +130,7 @@ function syncWorkloadPartnersSheet() {
       targetSheet.appendRow(fullRow);
       Logger.log("Added new row with ID: " + id);
     } else {
-      // Existing row, compare cells (up to source row length or all?)
-      // The user wants to track changes of cell values.
+      // Existing row, compare cells
       var targetRowNumber = targetRowInfo.row;
       var targetValues = targetRowInfo.values;
       
