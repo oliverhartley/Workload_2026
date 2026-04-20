@@ -94,7 +94,7 @@ function syncWorkloadPartnersSheet() {
     return;
   }
   
-  // 2. Read data and map IDs
+  // 2. Read source data and map IDs
   var sourceData = sourceSheet.getDataRange().getValues();
   var workloadIds = [];
   
@@ -116,8 +116,35 @@ function syncWorkloadPartnersSheet() {
   // Also add Workload_ID column at the end (Column AD = 30)
   targetSheet.getRange(1, 30).setValue("Workload_ID");
   
-  // Map target data by Workload_ID (Column AD = 30)
+  // 4. Backfill missing IDs in target sheet
   var targetData = targetSheet.getDataRange().getValues();
+  var targetIds = [];
+  var needsUpdate = false;
+  
+  for (var i = 1; i < targetData.length; i++) {
+    var id = targetData[i][29]; // Column AD is index 29 (0-based)
+    if (!id) {
+      var workloadName = targetData[i][3]; // Column D (index 3) is Workload Name in target
+      id = linkMap[workloadName] || "";
+      if (id) {
+        targetIds.push([id]);
+        needsUpdate = true;
+      } else {
+        targetIds.push([""]);
+      }
+    } else {
+      targetIds.push([id]);
+    }
+  }
+  
+  if (needsUpdate) {
+    targetSheet.getRange(2, 30, targetIds.length, 1).setValues(targetIds);
+    Logger.log("Backfilled missing IDs in target sheet.");
+    // Re-read target data to get the updated values
+    targetData = targetSheet.getDataRange().getValues();
+  }
+  
+  // 5. Map target data by Workload_ID (Column AD = 30)
   var targetMap = {};
   for (var i = 1; i < targetData.length; i++) {
     var id = targetData[i][29]; // Column AD is index 29 (0-based)
@@ -126,7 +153,7 @@ function syncWorkloadPartnersSheet() {
     }
   }
   
-  // 4. Iterate source data and compare
+  // 6. Iterate source data and compare
   for (var i = 1; i < sourceData.length; i++) {
     var sourceRow = sourceData[i];
     var id = workloadIds[i - 1]; // Corresponding ID for this row
@@ -161,9 +188,6 @@ function syncWorkloadPartnersSheet() {
           Logger.log("Updated cell (" + targetRowNumber + "," + (j + 1) + ") for ID: " + id);
         }
       }
-      
-      // Update the Workload_ID in Column AD just in case
-      targetSheet.getRange(targetRowNumber, 30).setValue(id);
     }
   }
 }
