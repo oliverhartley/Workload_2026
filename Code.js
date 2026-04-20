@@ -59,10 +59,11 @@ function syncWorkloadsFromScratch() {
       if (id) {
         var fullRow = sourceRow.slice();
         fullRow.push(id);
+        fullRow.push(url); // Append raw URL as requested
         
         sourceMap[id] = { values: fullRow, progress: sourceRow[progressColIndex] };
         sourceRows.push(fullRow);
-        Logger.log("Extracted ID: '" + id + "' for workload: '" + workloadName + "'");
+        Logger.log("Extracted ID: '" + id + "' and URL for workload: '" + workloadName + "'");
       } else {
         Logger.log("Failed to extract ID for workload: '" + workloadName + "'");
       }
@@ -75,6 +76,7 @@ function syncWorkloadsFromScratch() {
   if (targetLastRow === 0) {
     var targetHeaders = sourceHeaders.slice();
     targetHeaders.push("Workload_ID");
+    targetHeaders.push("Workload_Link");
     targetSheet.appendRow(targetHeaders);
     targetLastRow = 1;
   }
@@ -83,8 +85,8 @@ function syncWorkloadsFromScratch() {
   var targetData = targetSheet.getDataRange().getValues();
   var targetMap = {};
   
-  // Find Workload_ID column index in target. It should be the last one.
-  var targetIdColIndex = targetData[0].length - 1;
+  // Find Workload_ID column index in target. It should be the second to last one now.
+  var targetIdColIndex = targetData[0].length - 2;
   
   for (var i = 1; i < targetData.length; i++) {
     var targetRow = targetData[i];
