@@ -91,9 +91,7 @@ function syncExpertRequests() {
   var targetLastRow = targetSheet.getLastRow();
   
   if (targetLastRow < 3) {
-    var initHeaders = sourceHeaders.slice();
-    initHeaders.push("ER Link");
-    targetSheet.getRange(3, 1, 1, initHeaders.length).setValues([initHeaders]);
+    targetSheet.getRange(3, 1, 1, sourceHeaders.length).setValues([sourceHeaders]);
     targetLastRow = 3;
   }
   
@@ -106,6 +104,16 @@ function syncExpertRequests() {
   var targetIdColIndex = targetHeaders.indexOf("Expert Request: ID");
   var erLinkColIndex = targetHeaders.indexOf("ER Link");
   var sourceHeaderCount = sourceHeaders.length;
+  
+  if (erLinkColIndex !== -1) {
+    targetSheet.deleteColumn(erLinkColIndex + 1);
+    Logger.log("Deleted column 'ER Link' at index " + (erLinkColIndex + 1));
+    // Re-read target headers and data
+    targetDataRange = targetSheet.getRange(3, 1, targetSheet.getLastRow() - 2, targetSheet.getLastColumn() - 1);
+    targetData = targetDataRange.getValues();
+    targetHeaders = targetData[0];
+    targetIdColIndex = targetHeaders.indexOf("Expert Request: ID");
+  }
   
   if (targetIdColIndex === -1) {
     Logger.log("Error: 'Expert Request: ID' column not found in target sheet.");
@@ -130,16 +138,18 @@ function syncExpertRequests() {
     var targetRecord = targetMap[id];
     
     var targetRowToWrite = sourceValues.slice();
+    var erName = sourceValues[0]; // Assuming name is first column
     var url = "https://vector.lightning.force.com/lightning/r/Expert_Request__c/" + id + "/view";
-    var hyperlinkFormula = '=HYPERLINK("' + url + '", "Link")';
+    var hyperlinkFormula = '=HYPERLINK("' + url + '", "' + erName + '")';
+    
+    // Replace name with formula in first column
+    targetRowToWrite[0] = hyperlinkFormula;
     
     if (targetRecord) {
       // Existing Row logic
       var targetValues = targetRecord.values;
       for (var j = sourceHeaderCount; j < targetHeaders.length; j++) {
-        if (j === erLinkColIndex) {
-          targetRowToWrite.push(hyperlinkFormula);
-        } else if (j < targetValues.length) {
+        if (j < targetValues.length) {
           targetRowToWrite.push(targetValues[j]);
         } else {
           targetRowToWrite.push("");
@@ -163,13 +173,6 @@ function syncExpertRequests() {
       }
     } else {
       // New Row logic
-      var linkIndex = erLinkColIndex !== -1 ? erLinkColIndex : sourceHeaderCount;
-      
-      while (targetRowToWrite.length < linkIndex) {
-        targetRowToWrite.push("");
-      }
-      targetRowToWrite.push(hyperlinkFormula);
-      
       while (targetRowToWrite.length < targetHeaders.length) {
         targetRowToWrite.push("");
       }
