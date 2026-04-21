@@ -24,11 +24,29 @@ function syncExpertRequests() {
   
   Logger.log("Newest file: " + newestFile.getName() + " (" + newestFile.getDateCreated() + ")");
   
-  var csvContent = newestFile.getBlob().getDataAsString();
-  var sourceData = Utilities.parseCsv(csvContent);
+  var sourceData = [];
+  var mimeType = newestFile.getMimeType();
+  Logger.log("File MimeType: " + mimeType);
+  
+  if (mimeType === "application/vnd.google-apps.spreadsheet") {
+    var ss = SpreadsheetApp.open(newestFile);
+    var sheet = ss.getSheets()[0]; // Assume first sheet
+    sourceData = sheet.getDataRange().getValues();
+  } else {
+    try {
+      var csvContent = newestFile.getBlob().getDataAsString();
+      sourceData = Utilities.parseCsv(csvContent);
+    } catch (e) {
+      Logger.log("Error parsing CSV: " + e.message);
+      if (csvContent) {
+        Logger.log("File content preview: " + csvContent.substring(0, 100));
+      }
+      return;
+    }
+  }
   
   if (sourceData.length === 0) {
-    Logger.log("CSV file is empty.");
+    Logger.log("Source data is empty.");
     return;
   }
   
