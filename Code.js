@@ -98,6 +98,7 @@ function syncWorkloadsFromScratch() {
     targetHeaders.push("Pendiente");
     targetHeaders.push("Comentario");
     targetHeaders.push("ER-Gemini");
+    targetHeaders.push("ER");
     targetSheet.appendRow(targetHeaders);
     targetLastRow = 1;
   }
@@ -161,9 +162,11 @@ function syncWorkloadsFromScratch() {
       // Preserve existing comments if they exist in target
       var commentIndex = targetHeaders.indexOf("Comentario");
       var commentErIndex = targetHeaders.indexOf("ER-Gemini");
+      var erIndex = targetHeaders.indexOf("ER");
       
       if (commentIndex !== -1) targetRowToWrite[commentIndex] = targetValues[commentIndex];
       if (commentErIndex !== -1) targetRowToWrite[commentErIndex] = targetValues[commentErIndex];
+      if (erIndex !== -1) targetRowToWrite[erIndex] = targetValues[erIndex];
       
       // Check change tracking on progress column
       if (sourceRecord.progress !== targetRecord.progress) {
