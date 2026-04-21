@@ -109,7 +109,7 @@ function syncExpertRequests() {
     targetSheet.deleteColumn(erLinkColIndex + 1);
     Logger.log("Deleted column 'ER Link' at index " + (erLinkColIndex + 1));
     // Re-read target headers and data
-    targetDataRange = targetSheet.getRange(3, 1, targetSheet.getLastRow() - 2, targetSheet.getLastColumn() - 1);
+    targetDataRange = targetSheet.getRange(3, 1, targetSheet.getLastRow() - 2, targetSheet.getLastColumn());
     targetData = targetDataRange.getValues();
     targetHeaders = targetData[0];
     targetIdColIndex = targetHeaders.indexOf("Expert Request: ID");
