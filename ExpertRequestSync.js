@@ -91,7 +91,9 @@ function syncExpertRequests() {
   var targetLastRow = targetSheet.getLastRow();
   
   if (targetLastRow < 3) {
-    targetSheet.getRange(3, 1, 1, sourceHeaders.length).setValues([sourceHeaders]);
+    var initHeaders = sourceHeaders.slice();
+    initHeaders.push("ER Link");
+    targetSheet.getRange(3, 1, 1, initHeaders.length).setValues([initHeaders]);
     targetLastRow = 3;
   }
   
@@ -102,6 +104,7 @@ function syncExpertRequests() {
   var targetMap = {};
   
   var targetIdColIndex = targetHeaders.indexOf("Expert Request: ID");
+  var erLinkColIndex = targetHeaders.indexOf("ER Link");
   var sourceHeaderCount = sourceHeaders.length;
   
   if (targetIdColIndex === -1) {
@@ -127,26 +130,22 @@ function syncExpertRequests() {
     var targetRecord = targetMap[id];
     
     var targetRowToWrite = sourceValues.slice();
+    var url = "https://vector.lightning.force.com/lightning/r/Expert_Request__c/" + id + "/view";
+    var hyperlinkFormula = '=HYPERLINK("' + url + '", "Link")';
     
     if (targetRecord) {
+      // Existing Row logic
       var targetValues = targetRecord.values;
-      for (var j = sourceHeaderCount; j < targetValues.length; j++) {
-        targetRowToWrite.push(targetValues[j]);
-      }
-    }
-    
-    if (!targetRecord) {
-      // New Row
-      while (targetRowToWrite.length < targetHeaders.length) {
-        targetRowToWrite.push("");
+      for (var j = sourceHeaderCount; j < targetHeaders.length; j++) {
+        if (j === erLinkColIndex) {
+          targetRowToWrite.push(hyperlinkFormula);
+        } else if (j < targetValues.length) {
+          targetRowToWrite.push(targetValues[j]);
+        } else {
+          targetRowToWrite.push("");
+        }
       }
       
-      targetSheet.getRange(targetLastRow + 1, 1, 1, targetRowToWrite.length).setValues([targetRowToWrite]);
-      targetSheet.getRange(targetLastRow + 1, 1, 1, targetRowToWrite.length).setBackground("#E2EFDA"); // Green
-      targetLastRow++;
-      Logger.log("NEW row added for ID: " + id);
-    } else {
-      // Existing Row
       var targetRowNumber = targetRecord.row;
       
       while (targetRowToWrite.length < targetHeaders.length) {
@@ -162,6 +161,23 @@ function syncExpertRequests() {
         targetSheet.getRange(targetRowNumber, 1, 1, targetRowToWrite.length).setBackground(null);
         Logger.log("UPDATE (Clear) for ID: " + id);
       }
+    } else {
+      // New Row logic
+      var linkIndex = erLinkColIndex !== -1 ? erLinkColIndex : sourceHeaderCount;
+      
+      while (targetRowToWrite.length < linkIndex) {
+        targetRowToWrite.push("");
+      }
+      targetRowToWrite.push(hyperlinkFormula);
+      
+      while (targetRowToWrite.length < targetHeaders.length) {
+        targetRowToWrite.push("");
+      }
+      
+      targetSheet.getRange(targetLastRow + 1, 1, 1, targetRowToWrite.length).setValues([targetRowToWrite]);
+      targetSheet.getRange(targetLastRow + 1, 1, 1, targetRowToWrite.length).setBackground("#E2EFDA"); // Green
+      targetLastRow++;
+      Logger.log("NEW row added for ID: " + id);
     }
   }
   
