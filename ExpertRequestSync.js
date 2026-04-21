@@ -33,11 +33,21 @@ function syncExpertRequests() {
   }
   
   var sourceHeaders = sourceData[0];
-  var idColIndex = sourceHeaders.indexOf("Expert Request: ID");
-  var statusColIndex = sourceHeaders.indexOf("Status");
+  var idColIndex = -1;
+  var statusColIndex = -1;
+  
+  for (var i = 0; i < sourceHeaders.length; i++) {
+    var header = sourceHeaders[i].trim();
+    if (header === "Expert Request: ID") {
+      idColIndex = i;
+    } else if (header === "Status") {
+      statusColIndex = i;
+    }
+  }
   
   if (idColIndex === -1) {
     Logger.log("Error: 'Expert Request: ID' column not found in CSV.");
+    Logger.log("Found headers: " + JSON.stringify(sourceHeaders));
     return;
   }
   
