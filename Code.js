@@ -203,3 +203,11 @@ function syncWorkloadsFromScratch() {
     }
   }
 }
+
+function onOpen() {
+  var ui = SpreadsheetApp.getUi();
+  ui.createMenu('Sync Menu')
+      .addItem('Sync Workloads', 'syncWorkloadsFromScratch')
+      .addItem('Sync Expert Requests', 'syncExpertRequests')
+      .addToUi();
+}
