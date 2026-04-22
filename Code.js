@@ -106,6 +106,15 @@ function syncWorkloadsFromScratch() {
   // 4. Read target data and map by ID
   var targetData = targetSheet.getDataRange().getValues();
   var targetHeaders = targetData[0];
+  
+  var percepcionColIndex = targetHeaders.indexOf("Percepcion del Partner");
+  if (percepcionColIndex === -1) {
+    targetSheet.getRange(1, 38).setValue("Percepcion del Partner");
+    Logger.log("Added column 'Percepcion del Partner' at column AL");
+    // Re-read headers
+    targetHeaders = targetSheet.getDataRange().getValues()[0];
+  }
+  
   var targetMap = {};
   
   // Find column indices by header name
@@ -163,10 +172,12 @@ function syncWorkloadsFromScratch() {
       var commentIndex = targetHeaders.indexOf("Comentario");
       var commentErIndex = targetHeaders.indexOf("ER-Gemini");
       var erIndex = targetHeaders.indexOf("ER");
+      var percepcionIndex = targetHeaders.indexOf("Percepcion del Partner");
       
       if (commentIndex !== -1) targetRowToWrite[commentIndex] = targetValues[commentIndex];
       if (commentErIndex !== -1) targetRowToWrite[commentErIndex] = targetValues[commentErIndex];
       if (erIndex !== -1) targetRowToWrite[erIndex] = targetValues[erIndex];
+      if (percepcionIndex !== -1) targetRowToWrite[percepcionIndex] = targetValues[percepcionIndex];
       
       // Check change tracking on progress column
       if (sourceRecord.progress !== targetRecord.progress) {
