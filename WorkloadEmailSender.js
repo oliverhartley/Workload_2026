@@ -93,17 +93,30 @@ function sendWorkloadEmails() {
                "<p>Te escribo para saber si los workloads de GCP van por buen camino o si hay algún retraso.</p>" +
                "<p>En caso de haber algún bloqueo, ¿me podrías confirmar si es por parte del partner o del cliente?</p>" +
                "<p>Por último, avísame si hay alguna acción técnica que pueda realizar desde mi lado para ayudar al partner a que las cosas avancen más rápido.</p>" +
-               "<br/>";
+               "<br/>" +
+               "<table style='border-collapse: collapse; width: 100%; font-family: Arial, sans-serif;'>" +
+               "<thead>" +
+               "<tr style='background-color: #4285F4; color: white;'>" +
+               "<th style='border: 1px solid #dddddd; text-align: left; padding: 8px;'>Workload</th>" +
+               "<th style='border: 1px solid #dddddd; text-align: left; padding: 8px;'>Partner</th>" +
+               "<th style='border: 1px solid #dddddd; text-align: left; padding: 8px;'>Progress</th>" +
+               "<th style='border: 1px solid #dddddd; text-align: left; padding: 8px;'>Days to Production</th>" +
+               "<th style='border: 1px solid #dddddd; text-align: left; padding: 8px;'>Link</th>" +
+               "</tr>" +
+               "</thead>" +
+               "<tbody>";
                
     workloads.forEach(function(wl) {
-      bodyHtml += "<p><b>" + wl.name + "</b> --> Column D</p>" +
-                  "<p>Production Date: " + wl.prodDate + " --> Column S</p>" +
-                  "<p>Days to Production: " + wl.daysToProd + " --> Column AE</p>" +
-                  "<p>Partner: " + wl.partner + " --> Column A</p>" +
-                  "<p>Progress: " + wl.progress + " --> Column H</p>" +
-                  "<p>Workload Link: <a href='" + wl.link + "'>" + wl.link + "</a> --> Column AD</p>" +
-                  "<br/>";
+      bodyHtml += "<tr>" +
+                  "<td style='border: 1px solid #dddddd; text-align: left; padding: 8px;'><b>" + wl.name + "</b></td>" +
+                  "<td style='border: 1px solid #dddddd; text-align: left; padding: 8px;'>" + wl.partner + "</td>" +
+                  "<td style='border: 1px solid #dddddd; text-align: left; padding: 8px;'>" + wl.progress + "</td>" +
+                  "<td style='border: 1px solid #dddddd; text-align: left; padding: 8px;'>" + wl.daysToProd + "</td>" +
+                  "<td style='border: 1px solid #dddddd; text-align: left; padding: 8px;'><a href='" + wl.link + "'>Link</a></td>" +
+                  "</tr>";
     });
+    
+    bodyHtml += "</tbody></table>";
     
     MailApp.sendEmail({
       to: recipient,
