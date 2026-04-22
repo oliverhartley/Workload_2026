@@ -220,5 +220,6 @@ function onOpen() {
   ui.createMenu('Sync Menu')
       .addItem('Sync Workloads', 'syncWorkloadsFromScratch')
       .addItem('Sync Expert Requests', 'syncExpertRequests')
+      .addItem('Send Workload Emails', 'sendWorkloadEmails')
       .addToUi();
 }
