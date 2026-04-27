@@ -33,16 +33,16 @@ function syncWorkloadsFromScratch() {
   var targetData = targetSheet.getDataRange().getValues();
   var targetHeaders = targetData[0];
   
-  // If sheet was empty or headers don't match, write headers
+  // If sheet was empty, use expectedHeaders as default
   if (targetData.length === 1 && targetData[0][0] === "") {
     targetSheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]);
     targetData = [expectedHeaders];
     targetHeaders = expectedHeaders;
   }
   
-  var idColIndex = expectedHeaders.indexOf("Workload: ID");
+  var idColIndex = targetHeaders.indexOf("Workload: ID");
   if (idColIndex === -1) {
-    throw new Error("Critical: 'Workload: ID' column not defined in expected headers.");
+    throw new Error("Critical: 'Workload: ID' column not found in target sheet.");
   }
   
   var targetMap = {};
@@ -60,12 +60,12 @@ function syncWorkloadsFromScratch() {
   
   // 4. Find indices of expected headers in source sheet
   var headerIndices = {};
-  expectedHeaders.forEach(function(header) {
+  targetHeaders.forEach(function(header) {
     var index = actualSourceHeaders.indexOf(header);
     headerIndices[header] = index;
   });
   
-  var sourceIdColIndex = headerIndices["Workload: ID"];
+  var sourceIdColIndex = actualSourceHeaders.indexOf("Workload: ID");
   if (sourceIdColIndex === -1) {
     throw new Error("Critical: 'Workload: ID' column not found in source sheet.");
   }
@@ -76,17 +76,31 @@ function syncWorkloadsFromScratch() {
     var id = sourceRow[sourceIdColIndex];
     
     if (id) {
-      var newRowValues = [];
-      expectedHeaders.forEach(function(header) {
-        var index = headerIndices[header];
-        if (index !== -1) {
-          newRowValues.push(sourceRow[index]);
-        } else {
-          newRowValues.push("");
-        }
-      });
-      
       var targetRecord = targetMap[id];
+      var newRowValues = [];
+      
+      if (targetRecord) {
+        // Start with existing target values
+        newRowValues = targetRecord.values.slice();
+        
+        // Overwrite with source values where available
+        targetHeaders.forEach(function(header, j) {
+          var sourceIndex = headerIndices[header];
+          if (sourceIndex !== -1) {
+            newRowValues[j] = sourceRow[sourceIndex];
+          }
+        });
+      } else {
+        // New Row, build from scratch
+        targetHeaders.forEach(function(header) {
+          var sourceIndex = headerIndices[header];
+          if (sourceIndex !== -1) {
+            newRowValues.push(sourceRow[sourceIndex]);
+          } else {
+            newRowValues.push("");
+          }
+        });
+      }
       
       if (!targetRecord) {
         // New Row (Light Green)
@@ -106,15 +120,14 @@ function syncWorkloadsFromScratch() {
           }
         }
         
+        var targetRowNumber = targetRecord.row;
         if (isChanged) {
           // Update Row (Light Yellow)
-          var targetRowNumber = targetRecord.row;
           targetSheet.getRange(targetRowNumber, 1, 1, newRowValues.length).setValues([newRowValues]);
           targetSheet.getRange(targetRowNumber, 1, 1, newRowValues.length).setBackground("#FFF2CC");
           Logger.log("Updated row for ID: " + id);
         } else {
           // No change, clear background
-          var targetRowNumber = targetRecord.row;
           targetSheet.getRange(targetRowNumber, 1, 1, newRowValues.length).setBackground(null);
         }
       }
