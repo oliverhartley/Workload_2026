@@ -20,13 +20,13 @@ function syncWorkloadsFromScratch() {
     Logger.log("Created target sheet: " + targetSheetName);
   }
   
-  // 1. Define the expected headers based on user request
+  // 1. Define the expected headers in the SPECIFIC ORDER requested by the user
   var expectedHeaders = [
-    "Account: Micro Region", "Account: Billing Country", "Workload: ID", "Workload: Workload Name",
-    "Link Workload", "Primary CE Technical Owner", "Workload: Owner Name", "Workload Progress",
-    "Primary Workload Pillar", "Partner", "Partner Name", "Workload Gross Annual Recurring Revenue (converted)",
-    "Workload Gross Month Recurring Revenue (converted)", "Technical Win Date", "Workload End Date",
-    "Account: Account Name", "Tier", "DSR", "DCE", "PSF Investment", "Account: Account Owner"
+    "Partner Name", "Account: Account Name", "Primary Workload Pillar", "Workload: Workload Name",
+    "Workload Progress", "Workload Gross Annual Recurring Revenue (converted)", "Workload: Owner Name",
+    "Technical Win Date", "Account: Micro Region", "Account: Billing Country", "Workload: ID",
+    "Link Workload", "Primary CE Technical Owner", "Partner", "Workload Gross Month Recurring Revenue (converted)",
+    "Workload End Date", "Tier", "DSR", "DCE", "PSF Investment", "Account: Account Owner"
   ];
   
   // 2. Read source data
