@@ -29,20 +29,11 @@ function syncWorkloadsFromScratch() {
     "Account: Account Name", "Tier", "DSR", "DCE", "PSF Investment", "Account: Account Owner"
   ];
   
-  // 2. Define custom columns to maintain (headers only)
-  var customHeaders = [
-    "Workload_ID", "Workload_Link", "Days to Production", "Pendiente",
-    "Comentario", "ER-Gemini", "ER", "Percepcion del Partner"
-  ];
-  
-  // Combined headers for target
-  var targetHeaders = expectedHeaders.concat(customHeaders);
-  
-  // 3. Read source data
+  // 2. Read source data
   var sourceData = sourceSheet.getDataRange().getValues();
   var actualSourceHeaders = sourceData[0];
   
-  // 4. Find indices of expected headers in source sheet
+  // 3. Find indices of expected headers in source sheet
   var headerIndices = {};
   expectedHeaders.forEach(function(header) {
     var index = actualSourceHeaders.indexOf(header);
@@ -58,11 +49,11 @@ function syncWorkloadsFromScratch() {
     throw new Error("Critical: 'Workload: ID' column not found in source sheet.");
   }
   
-  // 5. Clear target sheet and set new headers
+  // 4. Clear target sheet and set new headers
   targetSheet.clear();
-  targetSheet.appendRow(targetHeaders);
+  targetSheet.appendRow(expectedHeaders);
   
-  // 6. Process data and write to target
+  // 5. Process data and write to target
   var rowsToWrite = [];
   
   for (var i = 1; i < sourceData.length; i++) {
@@ -71,7 +62,6 @@ function syncWorkloadsFromScratch() {
     
     if (id) {
       var newRow = [];
-      // Add source data
       expectedHeaders.forEach(function(header) {
         var index = headerIndices[header];
         if (index !== -1) {
@@ -80,17 +70,13 @@ function syncWorkloadsFromScratch() {
           newRow.push(""); // Fill with empty string if header not found in source
         }
       });
-      // Add empty strings for custom columns (clearing content)
-      customHeaders.forEach(function() {
-        newRow.push("");
-      });
       rowsToWrite.push(newRow);
     }
   }
   
   if (rowsToWrite.length > 0) {
-    targetSheet.getRange(2, 1, rowsToWrite.length, targetHeaders.length).setValues(rowsToWrite);
-    Logger.log("Synced " + rowsToWrite.length + " rows to target sheet with custom columns preserved (cleared).");
+    targetSheet.getRange(2, 1, rowsToWrite.length, expectedHeaders.length).setValues(rowsToWrite);
+    Logger.log("Synced " + rowsToWrite.length + " rows to target sheet.");
   } else {
     Logger.log("No rows with valid IDs found to sync.");
   }
