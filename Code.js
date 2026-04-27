@@ -29,56 +29,96 @@ function syncWorkloadsFromScratch() {
     "Workload End Date", "Tier", "DSR", "DCE", "PSF Investment", "Account: Account Owner"
   ];
   
-  // 2. Read source data
+  // 2. Read target data to map by ID
+  var targetData = targetSheet.getDataRange().getValues();
+  var targetHeaders = targetData[0];
+  
+  // If sheet was empty or headers don't match, write headers
+  if (targetData.length === 1 && targetData[0][0] === "") {
+    targetSheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]);
+    targetData = [expectedHeaders];
+    targetHeaders = expectedHeaders;
+  }
+  
+  var idColIndex = expectedHeaders.indexOf("Workload: ID");
+  if (idColIndex === -1) {
+    throw new Error("Critical: 'Workload: ID' column not defined in expected headers.");
+  }
+  
+  var targetMap = {};
+  for (var i = 1; i < targetData.length; i++) {
+    var row = targetData[i];
+    var id = row[idColIndex];
+    if (id) {
+      targetMap[id] = { row: i + 1, values: row };
+    }
+  }
+  
+  // 3. Read source data
   var sourceData = sourceSheet.getDataRange().getValues();
   var actualSourceHeaders = sourceData[0];
   
-  // 3. Find indices of expected headers in source sheet
+  // 4. Find indices of expected headers in source sheet
   var headerIndices = {};
   expectedHeaders.forEach(function(header) {
     var index = actualSourceHeaders.indexOf(header);
-    if (index === -1) {
-      Logger.log("Warning: Header '" + header + "' not found in source sheet.");
-    }
     headerIndices[header] = index;
   });
   
-  // Find Workload: ID index specifically as it's the key
-  var idColIndex = headerIndices["Workload: ID"];
-  if (idColIndex === -1) {
+  var sourceIdColIndex = headerIndices["Workload: ID"];
+  if (sourceIdColIndex === -1) {
     throw new Error("Critical: 'Workload: ID' column not found in source sheet.");
   }
   
-  // 4. Clear target sheet and set new headers
-  targetSheet.clear();
-  targetSheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]);
-  
-  // 5. Process data and write to target
-  var rowsToWrite = [];
-  
+  // 5. Process data and sync
   for (var i = 1; i < sourceData.length; i++) {
     var sourceRow = sourceData[i];
-    var id = sourceRow[idColIndex];
+    var id = sourceRow[sourceIdColIndex];
     
     if (id) {
-      var newRow = [];
+      var newRowValues = [];
       expectedHeaders.forEach(function(header) {
         var index = headerIndices[header];
         if (index !== -1) {
-          newRow.push(sourceRow[index]);
+          newRowValues.push(sourceRow[index]);
         } else {
-          newRow.push(""); // Fill with empty string if header not found in source
+          newRowValues.push("");
         }
       });
-      rowsToWrite.push(newRow);
+      
+      var targetRecord = targetMap[id];
+      
+      if (!targetRecord) {
+        // New Row (Light Green)
+        targetSheet.appendRow(newRowValues);
+        var lastRow = targetSheet.getLastRow();
+        targetSheet.getRange(lastRow, 1, 1, newRowValues.length).setBackground("#E2EFDA");
+        Logger.log("Added new row for ID: " + id);
+      } else {
+        // Existing Row, compare values
+        var targetValues = targetRecord.values;
+        var isChanged = false;
+        
+        for (var j = 0; j < newRowValues.length; j++) {
+          if (String(newRowValues[j]) !== String(targetValues[j])) {
+            isChanged = true;
+            break;
+          }
+        }
+        
+        if (isChanged) {
+          // Update Row (Light Yellow)
+          var targetRowNumber = targetRecord.row;
+          targetSheet.getRange(targetRowNumber, 1, 1, newRowValues.length).setValues([newRowValues]);
+          targetSheet.getRange(targetRowNumber, 1, 1, newRowValues.length).setBackground("#FFF2CC");
+          Logger.log("Updated row for ID: " + id);
+        } else {
+          // No change, clear background
+          var targetRowNumber = targetRecord.row;
+          targetSheet.getRange(targetRowNumber, 1, 1, newRowValues.length).setBackground(null);
+        }
+      }
     }
-  }
-  
-  if (rowsToWrite.length > 0) {
-    targetSheet.getRange(2, 1, rowsToWrite.length, expectedHeaders.length).setValues(rowsToWrite);
-    Logger.log("Synced " + rowsToWrite.length + " rows to target sheet.");
-  } else {
-    Logger.log("No rows with valid IDs found to sync.");
   }
 }
 
