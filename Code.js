@@ -51,7 +51,7 @@ function syncWorkloadsFromScratch() {
   
   // 4. Clear target sheet and set new headers
   targetSheet.clear();
-  targetSheet.appendRow(expectedHeaders);
+  targetSheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]);
   
   // 5. Process data and write to target
   var rowsToWrite = [];
