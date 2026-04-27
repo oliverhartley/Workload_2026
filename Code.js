@@ -108,13 +108,16 @@ function syncWorkloadsFromScratch() {
         var lastRow = targetSheet.getLastRow();
         targetSheet.getRange(lastRow, 1, 1, newRowValues.length).setBackground("#E2EFDA");
         Logger.log("Added new row for ID: " + id);
+        
+        // Log to Change Log sheet
+        logChange(targetSpreadsheet, id, lastRow, "Insert", "New row added");
       } else {
         // Existing Row, compare values
         var targetValues = targetRecord.values;
         var isChanged = false;
         
         for (var j = 0; j < newRowValues.length; j++) {
-          if (String(newRowValues[j]) !== String(targetValues[j])) {
+          if (normalizeValue(newRowValues[j]) !== normalizeValue(targetValues[j])) {
             isChanged = true;
             break;
           }
@@ -126,6 +129,15 @@ function syncWorkloadsFromScratch() {
           targetSheet.getRange(targetRowNumber, 1, 1, newRowValues.length).setValues([newRowValues]);
           targetSheet.getRange(targetRowNumber, 1, 1, newRowValues.length).setBackground("#FFF2CC");
           Logger.log("Updated row for ID: " + id);
+          
+          // Log details of changes
+          var details = [];
+          for (var j = 0; j < newRowValues.length; j++) {
+            if (normalizeValue(newRowValues[j]) !== normalizeValue(targetValues[j])) {
+              details.push(targetHeaders[j] + ": '" + targetValues[j] + "' -> '" + newRowValues[j] + "'");
+            }
+          }
+          logChange(targetSpreadsheet, id, targetRowNumber, "Update", details.join(", "));
         } else {
           // No change, clear background
           targetSheet.getRange(targetRowNumber, 1, 1, newRowValues.length).setBackground(null);
@@ -143,4 +155,30 @@ function onOpen() {
       .addItem('Send Workload Emails', 'sendWorkloadEmails')
       .addItem('Create Owner Spreadsheets', 'createOwnerSheets')
       .addToUi();
+}
+
+function normalizeValue(val) {
+  if (val === null || val === undefined) return "";
+  var str = String(val).trim();
+  
+  if (/^(USD|\$)?\s*[\d,]+(\.\d+)?$/.test(str)) {
+    str = str.replace(/^(USD|\$)/, "").replace(/,/g, "").trim();
+    var num = parseFloat(str);
+    if (!isNaN(num)) {
+      return String(Math.round(num));
+    }
+  }
+  
+  return str;
+}
+
+function logChange(spreadsheet, id, rowNumber, action, details) {
+  var logSheetName = "Change Log";
+  var logSheet = spreadsheet.getSheetByName(logSheetName);
+  if (!logSheet) {
+    logSheet = spreadsheet.insertSheet(logSheetName);
+    logSheet.appendRow(["Timestamp", "Workload: ID", "Row Number", "Action", "Details"]);
+    logSheet.getRange(1, 1, 1, 5).setFontWeight("bold");
+  }
+  logSheet.appendRow([new Date(), id, rowNumber, action, details]);
 }
