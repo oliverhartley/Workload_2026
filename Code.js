@@ -45,6 +45,8 @@ function syncWorkloadsFromScratch() {
     throw new Error("Critical: 'Workload: ID' column not found in target sheet.");
   }
   
+  var progressColIndex = targetHeaders.indexOf("Workload Progress");
+  
   var targetMap = {};
   for (var i = 1; i < targetData.length; i++) {
     var row = targetData[i];
@@ -116,10 +118,17 @@ function syncWorkloadsFromScratch() {
         var targetValues = targetRecord.values;
         var isChanged = false;
         
-        for (var j = 0; j < newRowValues.length; j++) {
-          if (normalizeValue(newRowValues[j]) !== normalizeValue(targetValues[j])) {
+        if (progressColIndex !== -1) {
+          if (normalizeValue(newRowValues[progressColIndex]) !== normalizeValue(targetValues[progressColIndex])) {
             isChanged = true;
-            break;
+          }
+        } else {
+          // Fallback if header not found, check all columns
+          for (var j = 0; j < newRowValues.length; j++) {
+            if (normalizeValue(newRowValues[j]) !== normalizeValue(targetValues[j])) {
+              isChanged = true;
+              break;
+            }
           }
         }
         
@@ -130,14 +139,19 @@ function syncWorkloadsFromScratch() {
           targetSheet.getRange(targetRowNumber, 1, 1, newRowValues.length).setBackground("#FFF2CC");
           Logger.log("Updated row for ID: " + id);
           
-          // Log details of changes
-          var details = [];
-          for (var j = 0; j < newRowValues.length; j++) {
-            if (normalizeValue(newRowValues[j]) !== normalizeValue(targetValues[j])) {
-              details.push(targetHeaders[j] + ": '" + targetValues[j] + "' -> '" + newRowValues[j] + "'");
+          // Log details of changes (only for Workload Progress or all if fallback used)
+          if (progressColIndex !== -1) {
+            var detail = "Workload Progress (Column E): '" + targetValues[progressColIndex] + "' -> '" + newRowValues[progressColIndex] + "'";
+            logChange(targetSpreadsheet, id, targetRowNumber, "Update", detail);
+          } else {
+            var details = [];
+            for (var j = 0; j < newRowValues.length; j++) {
+              if (normalizeValue(newRowValues[j]) !== normalizeValue(targetValues[j])) {
+                details.push(targetHeaders[j] + ": '" + targetValues[j] + "' -> '" + newRowValues[j] + "'");
+              }
             }
+            logChange(targetSpreadsheet, id, targetRowNumber, "Update", details.join(", "));
           }
-          logChange(targetSpreadsheet, id, targetRowNumber, "Update", details.join(", "));
         } else {
           // No change, clear background
           targetSheet.getRange(targetRowNumber, 1, 1, newRowValues.length).setBackground(null);
